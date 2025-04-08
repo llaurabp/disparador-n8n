@@ -1,8 +1,15 @@
 import { useState, useEffect } from 'react';
 import Papa from 'papaparse';
 import {
-  Box, Button, Input, Text, Textarea, Stack,
+  Box, Button, Input, Text, Textarea, Stack, Heading,FileUpload,CloseButton, InputGroup
 } from '@chakra-ui/react';
+import { LuFileUp } from "react-icons/lu"
+import {
+  useColorModeValue,
+} from "../components/ui/color-mode"
+
+import { toaster } from "../components/ui/toaster"
+
 
 export default function Disparo() {
   const [mensagem, setMensagem] = useState('');
@@ -20,21 +27,24 @@ export default function Disparo() {
       header: true,
       skipEmptyLines: true,
       complete: function (results) {
-        const linhas = results.data.filter(row => row['TELEFONE']); // Garante que TELEFONE esteja presente
-
+        const linhas = results.data.filter(row => row['TELEFONE']);
         if (linhas.length === 0) {
-          setResultado("⚠️ Nenhuma linha válida com a coluna TELEFONE encontrada.");
+          toaster.create({
+            title: 'Arquivo inválido',
+            description: "⚠️ Nenhuma linha com a coluna TELEFONE.",
+            status: 'warning',
+            duration: 3000,
+            isClosable: true,
+          });
           return;
         }
 
         const mensagensProcessadas = linhas.map(row => {
           let msg = mensagem;
-
           Object.keys(row).forEach(key => {
             const regex = new RegExp(`\\$${key}`, 'g');
             msg = msg.replace(regex, row[key] ?? '');
           });
-
           return {
             telefone: row['TELEFONE'],
             mensagem: msg,
@@ -42,18 +52,30 @@ export default function Disparo() {
         });
 
         setLinhasPersonalizadas(mensagensProcessadas);
-        setResultado(`✅ ${mensagensProcessadas.length} mensagens personalizadas preparadas.`);
+        setResultado(`✅ ${mensagensProcessadas.length} mensagens preparadas.`);
       },
       error: function (err) {
         console.error(err);
-        setResultado("❌ Erro ao ler o arquivo CSV.");
+        toaster.create({
+          title: 'Erro ao processar CSV',
+          description: '❌ Verifique o arquivo.',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
       }
     });
   };
 
   const handleSubmit = async () => {
     if (!mensagem || !csvFile || linhasPersonalizadas.length === 0) {
-      setResultado("⚠️ Preencha todos os campos e envie um CSV válido.");
+      toaster.create({
+        title: 'Campos incompletos',
+        description: '⚠️ Preencha todos os campos e envie um CSV válido.',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
       return;
     }
 
@@ -83,60 +105,127 @@ export default function Disparo() {
       });
 
       if (!res.ok) throw new Error(`Erro ${res.status}`);
-      setResultado("✅ Disparo enviado com sucesso!");
+      toaster.create({
+        title: 'Sucesso',
+        description: '✅ Disparo enviado com sucesso!',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      setResultado('');
     } catch (err) {
       console.error(err);
-      setResultado(`❌ Erro ao enviar: ${err.message}`);
+      toaster.create({
+        title: 'Erro ao enviar',
+        description: `❌ ${err.message}`,
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
     }
   };
+
+  const cardBg = useColorModeValue('white', 'gray.800');
+  const cardShadow = useColorModeValue('lg', 'dark-lg');
 
   useEffect(() => {
     console.log("✅ Componente Disparo carregado");
   }, []);
- 
+
   return (
-    <Box margin={0} display={"flex"} flexDirection={"column"} justifyContent={"center"} alignItems={"center"} width={"100vw"} height={"100vh"}>
-      <Text fontSize={"2xl"} fontWeight={"bold"}>Disparo de Mensagens</Text>
-      <Text fontSize={"lg"}>Use variáveis como <b>$NOME</b>, <b>$TELEFONE</b> etc. com base nas colunas do CSV.</Text>
+    <Box
+      display="flex"
+      flexDirection="column"
+      alignItems="center"
+      justifyContent="center"
+      minH="100vh"
+      bgGradient="linear(to-tr, gray.100, gray.50)"
+      px={4}
+    >
+      <Stack spacing={6} align="center" mb={6}>
+        <Heading size="lg">Disparo de Mensagens</Heading>
+        <Text fontSize="md" color="gray.600">
+          Use variáveis como <b>$NOME</b>, <b>$TELEFONE</b> com base nas colunas do CSV.
+        </Text>
+      </Stack>
 
-      <Box maxW={"30vw"} margin={"8"} padding={5} borderWidth={1} borderRadius={8} boxShadow="lg">
-        <Text>Mensagem com variáveis:</Text>
-        <Textarea
-          value={mensagem}
-          onChange={e => setMensagem(e.target.value)}
-          placeholder="Olá $NOME, tudo bem?"
-        />
+      <Box
+        w={{ base: '100%', sm: '500px' }}
+        p={8}
+        bg={cardBg}
+        borderRadius="xl"
+        boxShadow={cardShadow}
+      >
+        <Stack spacing={5}>
+          <Textarea
+          resize="none"
+            minH={"120px"}
+            placeholder="Olá $NOME, tudo bem?"
+            value={mensagem}
+            onChange={e => setMensagem(e.target.value)}
+            size="lg"
+            variant="filled"
+          />
+      {/* <FileUpload.Root gap="1" maxWidth="300px" accept={["file/csv"]} >
+      <FileUpload.HiddenInput />
+      <FileUpload.Label>Arquivo CSV formatado</FileUpload.Label>
+      <InputGroup
+        startElement={<LuFileUp />}
+        endElement={
+          <FileUpload.ClearTrigger asChild>
+            <CloseButton
+              me="-1"
+              size="xs"
+              variant="plain"
+              focusVisibleRing="inside"
+              focusRingWidth="2px"
+              pointerEvents="auto"
+            />
+          </FileUpload.ClearTrigger>
+        }
+      >
+        <Input asChild onChange={handleCsvUpload} accept='.csv' type="file"> 
+          <FileUpload.Trigger>
+            <FileUpload.FileText lineClamp={1} />
+          </FileUpload.Trigger>
+        </Input>
+      </InputGroup>
+    </FileUpload.Root>
+     */}
+          <Input
+            type="file"
+            accept=".csv"
+            onChange={handleCsvUpload}
+            size="md"
+          /> 
+          <Input
+            type="file"
+            accept="image/*"
+            onChange={e => setImagem(e.target.files[0])}
+            size="md"
+          />
 
-        <Text mt={3}>Arquivo CSV com colunas TELEFONE, NOME etc:</Text>
-        <Input
-          type="file"
-          accept=".csv"
-          onChange={handleCsvUpload}
-        />
+          {imagem && (
+            <Stack direction="row" spacing={4} align="center">
+              <Text fontSize="sm" flex="1" noOfLines={1}>
+                📎 {imagem.name}
+              </Text>
+              <Button size="sm" colorScheme="red" onClick={() => setImagem(null)}>
+                Remover
+              </Button>
+            </Stack>
+          )}
 
-        <Text mt={3}>Imagem (opcional):</Text>
-        <Input
-          type="file"
-          accept="image/*"
-          onChange={e => setImagem(e.target.files[0])}
-        />
+          <Button colorScheme="teal" size="lg" onClick={handleSubmit}>
+            ENVIAR
+          </Button>
 
-        {imagem && (
-          <Stack direction="row" spacing={4} mt={3}>
-            <Text fontSize="sm" flex="1" noOfLines={1}>
-              📎 {imagem.name}
+          {resultado && (
+            <Text fontWeight="bold" color="gray.700" mt={4}>
+              {resultado}
             </Text>
-            <Button colorScheme="red" size="sm" onClick={() => setImagem(null)}>
-              Remover
-            </Button>
-          </Stack>
-        )}
-
-        <Button colorScheme="teal" mt={5} onClick={handleSubmit}>
-          ENVIAR
-        </Button>
-
-        <Text fontWeight={"bold"} mt={5}>{resultado}</Text>
+          )}
+        </Stack>
       </Box>
     </Box>
   );

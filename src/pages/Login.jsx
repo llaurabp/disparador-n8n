@@ -1,111 +1,129 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
-  Box, Button, Input, Text, Stack,
+  Box, Button, Input, Text, Stack, Heading,
 } from '@chakra-ui/react';
+import {
+    useColorModeValue,
+  } from "../components/ui/color-mode"
+
+  import { toaster } from "../components/ui/toaster"
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [mensagem, setMensagem] = useState('');
-  const [carregando, setCarregando] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setMensagem('⚠️ Preencha o e-mail e a senha.');
+        toaster.create({
+        title: 'Campos obrigatórios',
+        description: '⚠️ Preencha o e-mail e a senha.',
+        status: 'warning',
+        duration: 3000,
+        isClosable: true,
+      });
       return;
     }
 
     try {
-      setCarregando(true);
+      setLoading(true);
       const resposta = await fetch('https://test-n8n-webhook.logiczap.app/webhook/disparador-login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await resposta.json();
-
       if (!resposta.ok || data.status === 'error') {
-        setMensagem(`❌ ${data.message || 'Erro no login'}`);
-        setCarregando(false);
+        toaster.create({
+          title: 'Erro no login',
+          description: data.message || '❌ Erro inesperado.',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        });
         return;
       }
 
-      // Sucesso! Armazenar token e redirecionar
       localStorage.setItem('auth_token', data.token);
-      setMensagem('✅ Login realizado com sucesso!');
+      toaster.create({
+        title: 'Sucesso!',
+        description: '✅ Login realizado com sucesso.',
+        status: 'success',
+        duration: 1500,
+        isClosable: true,
+      });
+
       setTimeout(() => {
-        window.location.href = '/disparo'; // redirecione para sua tela de disparo
+        window.location.href = '/disparo';
       }, 1000);
 
-    } catch (erro) {
-      console.error(erro);
-      setMensagem('❌ Erro ao conectar com o servidor.');
+    } catch {
+        toaster.create({
+        title: 'Erro de conexão',
+        description: '❌ Erro ao conectar com o servidor.',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
     } finally {
-      setCarregando(false);
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    console.log("✅ Tela de login carregada");
-  }, []);
+  const cardBg = useColorModeValue('white', 'gray.800');
+  const cardShadow = useColorModeValue('lg', 'dark-lg');
 
   return (
     <Box
-      margin={0}
       display="flex"
       flexDirection="column"
       justifyContent="center"
       alignItems="center"
-      width="100vw"
-      height="100vh"
+      minH="100vh"
+      bgGradient="linear(to-tr, gray.100, gray.50)"
+      px={4}
     >
-      <Text fontSize="2xl" fontWeight="bold">Disparador - LógicZAP</Text>
-      <Text fontSize="lg" mt={2}>Faça login para continuar</Text>
+      <Stack spacing={6} align="center">
+        <Heading size="lg">Disparador - LógicZAP</Heading>
+        <Text fontSize="md" color="gray.600">Acesse com sua conta</Text>
 
-      <Box
-        maxW="30vw"
-        margin="8"
-        padding={5}
-        borderWidth={1}
-        borderRadius={8}
-        boxShadow="lg"
-        width="100%"
-      >
-        <Stack spacing={4}>
-          <Box>
-            <Text>E-mail:</Text>
+        <Box
+          w={{ base: '90%', sm: '400px' }}
+          bg={cardBg}
+          p={8}
+          borderRadius="xl"
+          boxShadow={cardShadow}
+        >
+          <Stack spacing={5}>
             <Input
               type="email"
+              placeholder="E-mail"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="Digite seu e-mail"
+              size="lg"
+              variant="filled"
             />
-          </Box>
-
-          <Box>
-            <Text>Senha:</Text>
             <Input
               type="password"
+              placeholder="Senha"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="Digite sua senha"
+              size="lg"
+              variant="filled"
             />
-          </Box>
-
-          <Button colorScheme="teal" onClick={handleLogin} isLoading={carregando}>
-            Entrar
-          </Button>
-
-          {mensagem && (
-            <Text fontWeight="bold" mt={2} color={mensagem.includes('✅') ? 'green.500' : 'red.500'}>
-              {mensagem}
-            </Text>
-          )}
-        </Stack>
-      </Box>
+            <Button
+              colorScheme="teal"
+              size="lg"
+              onClick={handleLogin}
+              isLoading={loading}
+              rounded="md"
+            >
+              Entrar
+            </Button>
+          </Stack>
+        </Box>
+      </Stack>
     </Box>
   );
 }
