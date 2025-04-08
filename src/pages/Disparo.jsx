@@ -1,26 +1,64 @@
 import { useState, useEffect } from 'react';
-import { Box, Button, Input, Text, Textarea, Stack } from '@chakra-ui/react';
+import Papa from 'papaparse';
+import {
+  Box, Button, Input, Text, Textarea, Stack,
+} from '@chakra-ui/react';
 
 export default function Disparo() {
   const [mensagem, setMensagem] = useState('');
-  const [numeros, setNumeros] = useState('');
+  const [csvFile, setCsvFile] = useState(null);
   const [imagem, setImagem] = useState(null);
   const [resultado, setResultado] = useState('');
+  const [linhasPersonalizadas, setLinhasPersonalizadas] = useState([]);
+
+  const handleCsvUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setCsvFile(file);
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: function (results) {
+        const linhas = results.data.filter(row => row['TELEFONE']); // Garante que TELEFONE esteja presente
+
+        if (linhas.length === 0) {
+          setResultado("⚠️ Nenhuma linha válida com a coluna TELEFONE encontrada.");
+          return;
+        }
+
+        const mensagensProcessadas = linhas.map(row => {
+          let msg = mensagem;
+
+          Object.keys(row).forEach(key => {
+            const regex = new RegExp(`\\$${key}`, 'g');
+            msg = msg.replace(regex, row[key] ?? '');
+          });
+
+          return {
+            telefone: row['TELEFONE'],
+            mensagem: msg,
+          };
+        });
+
+        setLinhasPersonalizadas(mensagensProcessadas);
+        setResultado(`✅ ${mensagensProcessadas.length} mensagens personalizadas preparadas.`);
+      },
+      error: function (err) {
+        console.error(err);
+        setResultado("❌ Erro ao ler o arquivo CSV.");
+      }
+    });
+  };
 
   const handleSubmit = async () => {
-    if (!mensagem || !numeros) {
-      setResultado("⚠️ Preencha todos os campos obrigatórios.");
+    if (!mensagem || !csvFile || linhasPersonalizadas.length === 0) {
+      setResultado("⚠️ Preencha todos os campos e envie um CSV válido.");
       return;
     }
 
     const formData = new FormData();
-    const numerosArray = numeros
-      .split(/\r?\n|,/)
-      .map(n => n.trim())
-      .filter(n => n);
-
-    formData.append("Mensagem", mensagem);
-    formData.append("Numeros", numerosArray.join('\n'));
+    formData.append("Mensagens", JSON.stringify(linhasPersonalizadas));
 
     if (imagem) {
       const reader = new FileReader();
@@ -39,7 +77,7 @@ export default function Disparo() {
 
   const enviarDados = async (formData) => {
     try {
-      const res = await fetch('https://test-n8n-webhook.logiczap.app/webhook/teste-disparador', {
+      const res = await fetch('https://test-n8n-webhook.logiczap.app/webhook/disparador-disparo', {
         method: 'POST',
         body: formData
       });
@@ -55,26 +93,25 @@ export default function Disparo() {
   useEffect(() => {
     console.log("✅ Componente Disparo carregado");
   }, []);
-
+ 
   return (
     <Box margin={0} display={"flex"} flexDirection={"column"} justifyContent={"center"} alignItems={"center"} width={"100vw"} height={"100vh"}>
       <Text fontSize={"2xl"} fontWeight={"bold"}>Disparo de Mensagens</Text>
-      <Text fontSize={"lg"}>Envie mensagens para vários números de WhatsApp de uma vez!</Text>
+      <Text fontSize={"lg"}>Use variáveis como <b>$NOME</b>, <b>$TELEFONE</b> etc. com base nas colunas do CSV.</Text>
 
       <Box maxW={"30vw"} margin={"8"} padding={5} borderWidth={1} borderRadius={8} boxShadow="lg">
-        <Text>Mensagem:</Text>
+        <Text>Mensagem com variáveis:</Text>
         <Textarea
           value={mensagem}
           onChange={e => setMensagem(e.target.value)}
-          placeholder="Digite sua mensagem..."
+          placeholder="Olá $NOME, tudo bem?"
         />
 
-        <Text mt={3}>Números (um por linha ou separados por vírgula):</Text>
-        <Textarea
-          rows={5}
-          value={numeros}
-          onChange={e => setNumeros(e.target.value)}
-          placeholder="+5585999999999, +5585988888888"
+        <Text mt={3}>Arquivo CSV com colunas TELEFONE, NOME etc:</Text>
+        <Input
+          type="file"
+          accept=".csv"
+          onChange={handleCsvUpload}
         />
 
         <Text mt={3}>Imagem (opcional):</Text>
