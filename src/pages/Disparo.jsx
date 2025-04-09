@@ -96,7 +96,10 @@ export default function Disparo() {
         method: 'POST',
         body: formData
       });
-
+      setMensagem('');
+      setLinhasPersonalizadas([]);
+      setImagem(null);
+      setCsvFile(null);
       if (!res.ok) throw new Error(`Erro ${res.status}`);
       setResultado("✅ Disparo enviado com sucesso!");
     } catch (err) {
