@@ -24,6 +24,8 @@ export default function Disparo() {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      transformHeader: header => header.trim(),
+
       complete: function (results) {
         const linhas = results.data.filter(row => row['TELEFONE']);
   
@@ -53,9 +55,11 @@ export default function Disparo() {
       let msg = mensagem;
   
       Object.keys(row).forEach(key => {
-        const regex = new RegExp(`\\$${key}`, 'gi'); 
-        msg = msg.replace(regex, row[key] ?? '');
+        const trimmedKey = key.trim();
+        const regex = new RegExp(`\\$${trimmedKey}`, 'gi'); 
+        msg = msg.replace(regex, row[key]?.trim?.() ?? '');
       });
+      
   
       const telefoneKey = Object.keys(row).find(k => k.toLowerCase() === 'telefone');
       const numero = telefoneKey ? row[telefoneKey] : '';
