@@ -8,8 +8,6 @@ import {
   useColorModeValue,
 } from "../components/ui/color-mode"
 
-import { toaster } from "../components/ui/toaster"
-
 
 export default function Disparo() {
   const [mensagem, setMensagem] = useState('');
@@ -22,66 +20,55 @@ export default function Disparo() {
     const file = e.target.files[0];
     if (!file) return;
     setCsvFile(file);
-
+  
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: function (results) {
         const linhas = results.data.filter(row => row['TELEFONE']);
+  
         if (linhas.length === 0) {
-          toaster.create({
-            title: 'Arquivo inválido',
-            description: "⚠️ Nenhuma linha com a coluna TELEFONE.",
-            status: 'warning',
-            duration: 3000,
-            isClosable: true,
-          });
+          setResultado("⚠️ Nenhuma linha válida com a coluna TELEFONE encontrada.");
           return;
         }
-
-        const mensagensProcessadas = linhas.map(row => {
-          let msg = mensagem;
-          Object.keys(row).forEach(key => {
-            const regex = new RegExp(`\\$${key}`, 'g');
-            msg = msg.replace(regex, row[key] ?? '');
-          });
-          return {
-            telefone: row['TELEFONE'],
-            mensagem: msg,
-          };
-        });
-
-        setLinhasPersonalizadas(mensagensProcessadas);
-        setResultado(`✅ ${mensagensProcessadas.length} mensagens preparadas.`);
+  
+        setLinhasPersonalizadas(linhas);
+        setResultado(`✅ ${linhas.length} contatos prontos para personalização.`);
       },
       error: function (err) {
         console.error(err);
-        toaster.create({
-          title: 'Erro ao processar CSV',
-          description: '❌ Verifique o arquivo.',
-          status: 'error',
-          duration: 3000,
-          isClosable: true,
-        });
+        setResultado("❌ Erro ao ler o arquivo CSV.");
       }
     });
   };
+  
 
   const handleSubmit = async () => {
     if (!mensagem || !csvFile || linhasPersonalizadas.length === 0) {
-      toaster.create({
-        title: 'Campos incompletos',
-        description: '⚠️ Preencha todos os campos e envie um CSV válido.',
-        status: 'warning',
-        duration: 3000,
-        isClosable: true,
-      });
+      setResultado("⚠️ Preencha todos os campos e envie um CSV válido.");
       return;
     }
-
+  
+    const mensagensFinal = linhasPersonalizadas.map(row => {
+      let msg = mensagem;
+  
+      Object.keys(row).forEach(key => {
+        const regex = new RegExp(`\\$${key}`, 'gi'); 
+        msg = msg.replace(regex, row[key] ?? '');
+      });
+  
+      const telefoneKey = Object.keys(row).find(k => k.toLowerCase() === 'telefone');
+      const numero = telefoneKey ? row[telefoneKey] : '';
+  
+      return {
+        telefone: numero,
+        mensagem: msg,
+      };
+    });
+  
     const formData = new FormData();
-    formData.append("Mensagens", JSON.stringify(linhasPersonalizadas));
-
+    formData.append("Mensagens", JSON.stringify(mensagensFinal));
+  
     if (imagem) {
       const reader = new FileReader();
       reader.onload = async function (e) {
@@ -96,6 +83,8 @@ export default function Disparo() {
       await enviarDados(formData);
     }
   };
+  
+  
 
   const enviarDados = async (formData) => {
     try {
@@ -105,26 +94,12 @@ export default function Disparo() {
       });
 
       if (!res.ok) throw new Error(`Erro ${res.status}`);
-      toaster.create({
-        title: 'Sucesso',
-        description: '✅ Disparo enviado com sucesso!',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-      setResultado('');
+      setResultado("✅ Disparo enviado com sucesso!");
     } catch (err) {
       console.error(err);
-      toaster.create({
-        title: 'Erro ao enviar',
-        description: `❌ ${err.message}`,
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
+      setResultado(`❌ Erro ao enviar: ${err.message}`);
     }
   };
-
   const cardBg = useColorModeValue('white', 'gray.800');
   const cardShadow = useColorModeValue('lg', 'dark-lg');
 
@@ -158,40 +133,12 @@ export default function Disparo() {
       >
         <Stack spacing={5}>
           <Textarea
-          resize="none"
-            minH={"120px"}
             placeholder="Olá $NOME, tudo bem?"
             value={mensagem}
             onChange={e => setMensagem(e.target.value)}
             size="lg"
             variant="filled"
           />
-      {/* <FileUpload.Root gap="1" maxWidth="300px" accept={["file/csv"]} >
-      <FileUpload.HiddenInput />
-      <FileUpload.Label>Arquivo CSV formatado</FileUpload.Label>
-      <InputGroup
-        startElement={<LuFileUp />}
-        endElement={
-          <FileUpload.ClearTrigger asChild>
-            <CloseButton
-              me="-1"
-              size="xs"
-              variant="plain"
-              focusVisibleRing="inside"
-              focusRingWidth="2px"
-              pointerEvents="auto"
-            />
-          </FileUpload.ClearTrigger>
-        }
-      >
-        <Input asChild onChange={handleCsvUpload} accept='.csv' type="file"> 
-          <FileUpload.Trigger>
-            <FileUpload.FileText lineClamp={1} />
-          </FileUpload.Trigger>
-        </Input>
-      </InputGroup>
-    </FileUpload.Root>
-     */}
           <Input
             type="file"
             accept=".csv"
