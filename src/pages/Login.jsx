@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Box, Button, Input, Text, Stack, Heading,
+  Box, Button, Input, Text, Stack, Heading, Field
 } from '@chakra-ui/react';
 import {
     useColorModeValue,
@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resultado, setResultado] = useState("");
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -27,14 +28,15 @@ export default function LoginPage() {
 
     try {
       setLoading(true);
-      const resposta = await fetch('https://test-n8n-webhook.logiczap.app/webhook/disparador-login', {
+      const response = await fetch('https://test-n8n-webhook.logiczap.app/webhook/disparador-login-laura', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await resposta.json();
-      if (!resposta.ok || data.status === 'error') {
+      const data = await response.json();
+      console.log({data})
+      if (!response.ok || data.status === 'error') {
         toaster.create({
           title: 'Erro no login',
           description: data.message || '❌ Erro inesperado.',
@@ -42,10 +44,11 @@ export default function LoginPage() {
           duration: 3000,
           isClosable: true,
         });
+        setResultado("⚠️ E-mail ou senha inválidos.");
         return;
       }
-
       localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('auth_instance', data.instancia);
       toaster.create({
         title: 'Sucesso!',
         description: '✅ Login realizado com sucesso.',
@@ -53,6 +56,7 @@ export default function LoginPage() {
         duration: 1500,
         isClosable: true,
       });
+      setResultado("✅ Login realizado com sucesso.");
 
       setTimeout(() => {
         window.location.href = '/disparo';
@@ -66,6 +70,7 @@ export default function LoginPage() {
         duration: 3000,
         isClosable: true,
       });
+      setResultado("❌ Erro ao conectar com o servidor.");
     } finally {
       setLoading(false);
     }
@@ -96,6 +101,10 @@ export default function LoginPage() {
           boxShadow={cardShadow}
         >
           <Stack spacing={5}>
+          <Field.Root required>
+          <Field.Label fontWeight="bold">E-mail
+          <Field.RequiredIndicator />
+          </Field.Label>
             <Input
               type="email"
               placeholder="E-mail"
@@ -104,6 +113,13 @@ export default function LoginPage() {
               size="lg"
               variant="filled"
             />
+      </Field.Root>
+
+            <Field.Root required>
+        <Field.Label fontWeight="bold">Senha
+        <Field.RequiredIndicator />
+
+        </Field.Label>
             <Input
               type="password"
               placeholder="Senha"
@@ -112,6 +128,8 @@ export default function LoginPage() {
               size="lg"
               variant="filled"
             />
+      </Field.Root>
+
             <Button
               colorScheme="teal"
               size="lg"
@@ -121,6 +139,9 @@ export default function LoginPage() {
             >
               Entrar
             </Button>
+            <Text fontWeight="bold" color="gray.700" mt={4}>
+            {resultado}
+            </Text>
           </Stack>
         </Box>
       </Stack>
